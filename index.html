@@ -381,387 +381,279 @@
             grid.querySelectorAll('[data-quick-select]').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const catId = btn.getAttribute('data-quick-select');
-                    const selec```html
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Orçamento de Viagem</title>
-    <!-- Tailwind CSS via CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Fonte Inter do Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                    },
-                }
-            }
+                    const selectEl = document.getElementById('category');
+                    const amountEl = document.getElementById('amount');
+                    selectEl.value = catId;
+                    amountEl.focus();
+                    amountEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                });
+            });
         }
-    </script>
-</head>
-<body class="bg-slate-50 text-slate-800 font-sans antialiased min-h-screen pb-12">
 
-    <!-- Container Principal -->
-    <div class="max-w-2xl mx-auto px-4 pt-6 sm:pt-8">
-        
-        <!-- Cabeçalho -->
-        <header class="flex items-start sm:items-center justify-between gap-3 mb-6">
-            <div>
-                <div class="flex items-center gap-2 flex-wrap">
-                    <h1 class="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Orçamento de Viagem</h1>
-                    <!-- Indicador de Status do Firebase -->
-                    <span id="sync-badge" class="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-slate-200 text-slate-600">
-                        <span id="sync-dot" class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
-                        <span id="sync-text">Conectando...</span>
-                    </span>
-                </div>
-                <p class="text-sm text-slate-500 mt-1">Sincronizado em tempo real na nuvem</p>
-            </div>
-            <button id="btn-reset-modal" type="button" class="text-xs sm:text-sm font-medium text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 px-3 py-2 rounded-xl transition-colors shrink-0">
-                Zerar tudo
-            </button>
-        </header>
+        /**
+         * Renderiza a lista de histórico de gastos com suporte a filtro por categoria
+         */
+        function renderExpensesList() {
+            const listEl = document.getElementById('expenses-list');
+            const filterValue = document.getElementById('filter-category').value;
 
-        <!-- Aviso caso as regras do Realtime Database bloqueiem leitura/escrita -->
-        <div id="config-warning" class="hidden mb-6 bg-amber-50 border border-amber-200 text-amber-900 rounded-2xl p-4 text-sm">
-            <p class="font-semibold">Permissão bloqueada no Firebase Realtime Database</p>
-            <p class="mt-1 text-amber-800">
-                Verifique a aba <strong>Regras (Rules)</strong> do seu Realtime Database no Firebase Console e garanta que <code>.read</code> e <code>.write</code> estejam permitidos para salvar seus gastos.
-            </p>
-        </div>
+            const filtered = filterValue === 'all'
+                ? expenses
+                : expenses.filter(item => item.category === filterValue);
 
-        <!-- Card de Resumo Geral -->
-        <section class="bg-slate-900 text-white rounded-3xl p-6 shadow-lg mb-6">
-            <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-                <div>
-                    <span class="text-slate-400 text-xs uppercase tracking-wider font-semibold">Saldo Restante</span>
-                    <div id="total-remaining" class="text-3xl sm:text-4xl font-bold mt-1 tracking-tight">R$ 390,00</div>
-                </div>
-                <div class="flex gap-6 text-sm">
-                    <div>
-                        <span class="text-slate-400 block text-xs">Gasto Total</span>
-                        <span id="total-spent" class="font-semibold text-base text-amber-300">R$ 0,00</span>
+            listEl.innerHTML = '';
+
+            if (filtered.length === 0) {
+                listEl.innerHTML = `
+                    <div class="py-8 text-center">
+                        <p class="text-sm text-slate-400">Nenhum gasto registrado aqui ainda.</p>
                     </div>
-                    <div>
-                        <span class="text-slate-400 block text-xs">Limite Total</span>
-                        <span id="total-budget" class="font-semibold text-base text-slate-200">R$ 390,00</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Barra de Progresso Geral -->
-            <div class="mt-5">
-                <div class="flex justify-between text-xs text-slate-400 mb-1.5">
-                    <span>Progresso do orçamento</span>
-                    <span id="total-percent" class="font-medium text-slate-200">0%</span>
-                </div>
-                <div class="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
-                    <div id="total-progress-bar" class="bg-emerald-400 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Formulário para Adicionar Novo Gasto -->
-        <section class="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/80 mb-6">
-            <h2 class="text-base font-semibold text-slate-800 mb-4 flex items-center gap-2">
-                <span class="w-6 h-6 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center text-sm font-bold">+</span>
-                Registrar Novo Gasto
-            </h2>
-            <form id="expense-form" class="space-y-3">
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <!-- Campo Categoria -->
-                    <div>
-                        <label for="category" class="block text-xs font-medium text-slate-600 mb-1">Categoria</label>
-                        <select id="category" required class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-                            <option value="combustivel">⛽ Combustível (Máx. R$ 100)</option>
-                            <option value="aleatorios">🍔 Gastos Aleatórios (Máx. R$ 150)</option>
-                            <option value="fralda">👶 Fralda (Máx. R$ 80)</option>
-                            <option value="larissa">🎀 Itens para Larissa (Máx. R$ 60)</option>
-                        </select>
-                    </div>
-                    <!-- Campo Valor -->
-                    <div>
-                        <label for="amount" class="block text-xs font-medium text-slate-600 mb-1">Valor (R$)</label>
-                        <input type="number" id="amount" step="0.01" min="0.01" placeholder="Ex: 35,50" required class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-                    </div>
-                </div>
-
-                <!-- Campo Descrição -->
-                <div>
-                    <label for="description" class="block text-xs font-medium text-slate-600 mb-1">Descrição (opcional)</label>
-                    <input type="text" id="description" maxlength="60" placeholder="Ex: Lanche na estrada, posto, farmácia..." class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-                </div>
-
-                <button id="btn-submit" type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-50 text-white font-semibold text-sm py-3 px-4 rounded-xl shadow-sm transition-colors">
-                    Adicionar Gasto
-                </button>
-            </form>
-        </section>
-
-        <!-- Cards das Categorias -->
-        <section class="mb-6">
-            <h2 class="text-base font-semibold text-slate-800 mb-3 px-1">Categorias do Orçamento</h2>
-            <div id="categories-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                <!-- Os cards serão renderizados dinamicamente via JavaScript -->
-            </div>
-        </section>
-
-        <!-- Histórico de Gastos -->
-        <section class="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/80">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-                <h2 class="text-base font-semibold text-slate-800">Histórico de Gastos</h2>
-                <!-- Filtro de Categoria -->
-                <select id="filter-category" class="bg-slate-50 border border-slate-200 text-slate-700 text-xs font-medium rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    <option value="all">Todas as categorias</option>
-                    <option value="combustivel">⛽ Combustível</option>
-                    <option value="aleatorios">🍔 Gastos Aleatórios</option>
-                    <option value="fralda">👶 Fralda</option>
-                    <option value="larissa">🎀 Itens para Larissa</option>
-                </select>
-            </div>
-
-            <!-- Lista de Itens -->
-            <div id="expenses-list" class="divide-y divide-slate-100">
-                <div class="py-8 text-center">
-                    <p class="text-sm text-slate-400">Carregando gastos da nuvem...</p>
-                </div>
-            </div>
-        </section>
-    </div>
-
-    <!-- Modal de Confirmação para Zerar Tudo (Substitui confirm()) -->
-    <div id="reset-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-xl">
-            <h3 class="text-lg font-bold text-slate-900">Zerar todos os gastos?</h3>
-            <p class="text-sm text-slate-600 mt-2">
-                Isso vai apagar todo o histórico salvo no banco de dados e restaurar o saldo completo de R$ 390,00. Esta ação não pode ser desfeita.
-            </p>
-            <div class="flex gap-3 mt-6">
-                <button id="btn-cancel-reset" type="button" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm py-2.5 rounded-xl transition-colors">
-                    Cancelar
-                </button>
-                <button id="btn-confirm-reset" type="button" class="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-semibold text-sm py-2.5 rounded-xl transition-colors">
-                    Sim, zerar
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Notificação Toast -->
-    <div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-sm font-medium px-5 py-3 rounded-2xl shadow-lg opacity-0 pointer-events-none transition-all duration-300 z-50">
-        Gasto adicionado!
-    </div>
-
-    <!-- Lógica da Aplicação com Firebase Realtime Database -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getDatabase, ref, push, remove, onValue } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
-
-        // Configuração conectada diretamente à sua base Firebase Realtime Database
-        const firebaseConfig = {
-            databaseURL: "https://viagem-5b665-default-rtdb.firebaseio.com/"
-        };
-
-        // Definição fixa das categorias e limites informados
-        const CATEGORIES = [
-            {
-                id: 'combustivel',
-                name: 'Combustível',
-                subtitle: 'Abastecimento da viagem',
-                limit: 100,
-                icon: '⛽',
-                badgeBg: 'bg-sky-50 text-sky-700',
-                barColor: 'bg-sky-500'
-            },
-            {
-                id: 'aleatorios',
-                name: 'Gastos Aleatórios',
-                subtitle: 'Comida, sair e outros',
-                limit: 150,
-                icon: '🍔',
-                badgeBg: 'bg-amber-50 text-amber-700',
-                barColor: 'bg-amber-500'
-            },
-            {
-                id: 'fralda',
-                name: 'Fralda',
-                subtitle: 'Compra de fraldas',
-                limit: 80,
-                icon: '👶',
-                badgeBg: 'bg-emerald-50 text-emerald-700',
-                barColor: 'bg-emerald-500'
-            },
-            {
-                id: 'larissa',
-                name: 'Itens para Larissa',
-                subtitle: 'Outros itens da Larissa',
-                limit: 60,
-                icon: '🎀',
-                badgeBg: 'bg-pink-50 text-pink-700',
-                barColor: 'bg-pink-500'
+                `;
+                return;
             }
-        ];
 
-        // Estado da aplicação em memória (sincronizado via Firestore)
-        let db = null;
-        // Estado da aplicação em memória (sincronizado via Realtime Database)
-        let db = null;
-        let expensesRef = null;
-        let expenses = [];
-        let toastTimeout = null;
+            // Ordena em memória do mais recente para o mais antigo
+            const sorted = [...filtered].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
-        // Formatador de moeda brasileira (R$)
-        const currencyFormatter = new Intl.NumberFormat('pt-BR', {
-            style: 'currency',
-            currency: 'BRL'
-        });
+            sorted.forEach(item => {
+                const cat = CATEGORIES.find(c => c.id === item.category) || CATEGORIES[0];
+                const row = document.createElement('div');
+                row.className = 'py-3.5 flex items-center justify-between gap-3';
 
-        /**
-         * Formata um número para o padrão monetário brasileiro (ex: R$ 100,00)
-         */
-        function formatCurrency(value) {
-            return currencyFormatter.format(value);
-        }
+                const safeDescription = item.description
+                    ? item.description.replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                    : cat.name;
 
-        /**
-         * Atualiza o selo visual de conexão com o Firebase no cabeçalho
-         */
-        function setSyncStatus(status, text) {
-            const badge = document.getElementById('sync-badge');
-            const dot = document.getElementById('sync-dot');
-            const label = document.getElementById('sync-text');
-
-            label.textContent = text;
-            if (status === 'connected') {
-                badge.className = 'inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200';
-                dot.className = 'w-2 h-2 rounded-full bg-emerald-500';
-            } else if (status === 'error') {
-                badge.className = 'inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200';
-                dot.className = 'w-2 h-2 rounded-full bg-rose-500';
-            } else {
-                badge.className = 'inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-slate-200 text-slate-600';
-                dot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-pulse';
-            }
-        }
-
-        /**
-         * Exibe uma notificação temporária na parte inferior da tela
-         */
-        function showToast(message) {
-            const toast = document.getElementById('toast');
-            toast.textContent = message;
-            toast.classList.remove('opacity-0', 'translate-y-2');
-            toast.classList.add('opacity-100', 'translate-y-0');
-
-            clearTimeout(toastTimeout);
-            toastTimeout = setTimeout(() => {
-                toast.classList.remove('opacity-100', 'translate-y-0');
-                toast.classList.add('opacity-0', 'translate-y-2');
-            }, 2500);
-        }
-
-        /**
-         * Calcula o total gasto em uma categoria específica
-         */
-        function getCategorySpent(categoryId) {
-            return expenses
-                .filter(item => item.category === categoryId)
-                .reduce((sum, item) => sum + Number(item.amount || 0), 0);
-        }
-
-        /**
-         * Atualiza o card de resumo geral no topo da página
-         */
-        function renderSummary() {
-            const totalBudget = CATEGORIES.reduce((sum, cat) => sum + cat.limit, 0);
-            const totalSpent = expenses.reduce((sum, item) => sum + Number(item.amount || 0), 0);
-            const totalRemaining = totalBudget - totalSpent;
-            const percent = totalBudget > 0 ? Math.min((totalSpent / totalBudget) * 100, 100) : 0;
-            const rawPercent = totalBudget > 0 ? Math.round((totalSpent / totalBudget) * 100) : 0;
-
-            const remainingEl = document.getElementById('total-remaining');
-            const spentEl = document.getElementById('total-spent');
-            const budgetEl = document.getElementById('total-budget');
-            const percentEl = document.getElementById('total-percent');
-            const progressBar = document.getElementById('total-progress-bar');
-
-            remainingEl.textContent = formatCurrency(totalRemaining);
-            spentEl.textContent = formatCurrency(totalSpent);
-            budgetEl.textContent = formatCurrency(totalBudget);
-            percentEl.textContent = `${rawPercent}%`;
-            progressBar.style.width = `${percent}%`;
-
-            if (totalRemaining < 0) {
-                remainingEl.className = 'text-3xl sm:text-4xl font-bold mt-1 tracking-tight text-rose-400';
-                progressBar.className = 'bg-rose-500 h-2.5 rounded-full transition-all duration-300';
-            } else if (rawPercent >= 85) {
-                remainingEl.className = 'text-3xl sm:text-4xl font-bold mt-1 tracking-tight text-amber-300';
-                progressBar.className = 'bg-amber-400 h-2.5 rounded-full transition-all duration-300';
-            } else {
-                remainingEl.className = 'text-3xl sm:text-4xl font-bold mt-1 tracking-tight text-white';
-                progressBar.className = 'bg-emerald-400 h-2.5 rounded-full transition-all duration-300';
-            }
-        }
-
-        /**
-         * Renderiza os cards de cada categoria com barra de progresso e saldo restante
-         */
-        function renderCategories() {
-            const grid = document.getElementById('categories-grid');
-            grid.innerHTML = '';
-
-            CATEGORIES.forEach(cat => {
-                const spent = getCategorySpent(cat.id);
-                const remaining = cat.limit - spent;
-                const percent = Math.min((spent / cat.limit) * 100, 100);
-                const isOver = remaining < 0;
-
-                const card = document.createElement('div');
-                card.className = `bg-white rounded-2xl p-4 shadow-sm border transition-all ${
-                    isOver ? 'border-rose-300 bg-rose-50/30' : 'border-slate-200/80'
-                }`;
-                card.innerHTML = `
-                    <div class="flex items-start justify-between gap-2 mb-3">
-                        <div class="flex items-center gap-2.5">
-                            <span class="w-10 h-10 rounded-xl ${cat.badgeBg} flex items-center justify-center text-lg shrink-0">
-                                ${cat.icon}
-                            </span>
-                            <div>
-                                <h3 class="font-semibold text-sm text-slate-900 leading-tight">${cat.name}</h3>
-                                <p class="text-xs text-slate-500">${cat.subtitle}</p>
-                            </div>
+                row.innerHTML = `
+                    <div class="flex items-center gap-3 min-w-0">
+                        <span class="w-9 h-9 rounded-xl ${cat.badgeBg} flex items-center justify-center text-base shrink-0">
+                            ${cat.icon}
+                        </span>
+                        <div class="min-w-0">
+                            <p class="text-sm font-medium text-slate-800 truncate">${safeDescription}</p>
+                            <p class="text-xs text-slate-400">${cat.name} • ${item.date || ''}</p>
                         </div>
-                        <button type="button" data-quick-select="${cat.id}" class="text-xs font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1.5 rounded-lg transition-colors shrink-0">
-                            + Gasto
+                    </div>
+                    <div class="flex items-center gap-3 shrink-0">
+                        <span class="text-sm font-semibold text-slate-900">-${formatCurrency(Number(item.amount || 0))}</span>
+                        <button type="button" data-delete-id="${item.id}" aria-label="Remover gasto" class="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
                         </button>
-                    </div>
-
-                    <div class="flex items-baseline justify-between text-xs mb-1.5">
-                        <span class="text-slate-500">
-                            Gasto: <strong class="text-slate-800">${formatCurrency(spent)}</strong> / ${formatCurrency(cat.limit)}
-                        </span>
-                        <span class="font-semibold ${isOver ? 'text-rose-600' : 'text-emerald-600'}">
-                            ${isOver ? 'Passou ' + formatCurrency(Math.abs(remaining)) : 'Resta ' + formatCurrency(remaining)}
-                        </span>
-                    </div>
-
-                    <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                        <div class="${isOver ? 'bg-rose-500' : cat.barColor} h-2 rounded-full transition-all duration-300" style="width: ${percent}%"></div>
                     </div>
                 `;
 
-                grid.appendChild(card);
+                listEl.appendChild(row);
             });
 
-            // Atalho para selecionar a categoria no formulário ao clicar em "+ Gasto"
-            grid.querySelectorAll('[data-quick-select]').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const catId = btn.getAttribute('data-quick-select');
-                    const selec
+            // Eventos para remover um gasto individual no Firestore
+            listEl.querySelectorAll('[data-delete-id]').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    if (!currentUser || !db) return;
+                    const idToRemove = btn.getAttribute('data-delete-id');
+                    try {
+                        const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'expenses', idToRemove);
+                        await deleteDoc(docRef);
+                        showToast('Gasto removido da nuvem.');
+                    } catch (error) {
+                        console.error('Erro ao remover gasto:', error);
+                        showToast('Erro ao remover gasto.');
+                    }
+                });
+            });
+        }
+
+        /**
+         * Atualiza toda a interface
+         */
+        function renderAll() {
+            renderSummary();
+            renderCategories();
+            renderExpensesList();
+        }
+
+        /**
+         * Inicia o listener em tempo real do Firestore após a autenticação
+         */
+            // Eventos para remover um gasto individual no Realtime Database
+            listEl.querySelectorAll('[data-delete-id]').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    if (!db) return;
+                    const idToRemove = btn.getAttribute('data-delete-id');
+                    try {
+                        await remove(ref(db, `orcamento_viagem/expenses/${idToRemove}`));
+                        showToast('Gasto removido da nuvem.');
+                    } catch (error) {
+                        console.error('Erro ao remover gasto:', error);
+                        showToast('Erro ao remover gasto.');
+                    }
+                });
+            });
+        }
+
+        /**
+         * Atualiza toda a interface
+         */
+        function renderAll() {
+            renderSummary();
+            renderCategories();
+            renderExpensesList();
+        }
+
+        /**
+         * Inicializa o Firebase Realtime Database e ativa a sincronização em tempo real
+         */
+        function initFirebase() {
+            try {
+                const app = initializeApp(firebaseConfig);
+                db = getDatabase(app);
+                expensesRef = ref(db, 'orcamento_viagem/expenses');
+
+                onValue(
+                    expensesRef,
+                    (snapshot) => {
+                        const data = snapshot.val();
+                        if (data) {
+                            expenses = Object.entries(data).map(([id, value]) => ({
+                                id,
+                                ...value
+                            }));
+                        } else {
+                            expenses = [];
+                        }
+                        document.getElementById('config-warning').classList.add('hidden');
+                        setSyncStatus('connected', 'Firebase Ativo');
+                        renderAll();
+                    },
+                    (error) => {
+                        console.error('Erro ao sincronizar com o Realtime Database:', error);
+                        setSyncStatus('error', 'Sem permissão');
+                        document.getElementById('config-warning').classList.remove('hidden');
+                        showToast('Erro ao acessar o Firebase.');
+                        renderAll();
+                    }
+                );
+            } catch (error) {
+                console.error('Erro na inicialização do Firebase:', error);
+                setSyncStatus('error', 'Falha ao conectar');
+                showToast('Não foi possível conectar ao Firebase.');
+                renderAll();
+            }
+        }
+
+        // Inicialização dos eventos ao carregar o DOM
+        document.addEventListener('DOMContentLoaded', () => {
+            renderAll();
+            initFirebase();
+
+            // Submissão do formulário de novo gasto
+            const form = document.getElementById('expense-form');
+            const submitBtn = document.getElementById('btn-submit');
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                if (!db || !expensesRef) {
+                    showToast('Aguarde a conexão com o Firebase.');
+                    return;
+                }
+
+                const category = document.getElementById('category').value;
+                const amountInput = document.getElementById('amount');
+                const descriptionInput = document.getElementById('description');
+
+                const amount = parseFloat(amountInput.value);
+                if (isNaN(amount) || amount <= 0) {
+                    showToast('Informe um valor válido.');
+                    return;
+                }
+
+                const now = new Date();
+                const dateFormatted = now.toLocaleDateString('pt-BR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+
+                try {
+                    submitBtn.disabled = true;
+                    submitBtn.textContent = 'Salvando...';
+
+                    await push(expensesRef, {
+                        category,
+                        amount,
+                        description: descriptionInput.value.trim(),
+                        date: dateFormatted,
+                        createdAt: Date.now()
+                    });
+
+                    amountInput.value = '';
+                    descriptionInput.value = '';
+                    showToast('Gasto salvo no Firebase!');
+                } catch (error) {
+                    console.error('Erro ao salvar gasto:', error);
+                    document.getElementById('config-warning').classList.remove('hidden');
+                    showToast('Erro ao salvar no banco de dados.');
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Adicionar Gasto';
+                }
+            });
+
+            // Filtro de histórico
+            document.getElementById('filter-category').addEventListener('change', renderExpensesList);
+
+            // Controle do modal de "Zerar tudo"
+            const resetModal = document.getElementById('reset-modal');
+            const openResetBtn = document.getElementById('btn-reset-modal');
+            const cancelResetBtn = document.getElementById('btn-cancel-reset');
+            const confirmResetBtn = document.getElementById('btn-confirm-reset');
+
+            openResetBtn.addEventListener('click', () => {
+                if (expenses.length === 0) {
+                    showToast('Não há gastos para zerar.');
+                    return;
+                }
+                resetModal.classList.remove('hidden');
+                resetModal.classList.add('flex');
+            });
+
+            cancelResetBtn.addEventListener('click', () => {
+                resetModal.classList.add('hidden');
+                resetModal.classList.remove('flex');
+            });
+
+            confirmResetBtn.addEventListener('click', async () => {
+                if (!db || !expensesRef) return;
+
+                try {
+                    confirmResetBtn.disabled = true;
+                    confirmResetBtn.textContent = 'Zerando...';
+
+                    await remove(expensesRef);
+
+                    resetModal.classList.add('hidden');
+                    resetModal.classList.remove('flex');
+                    showToast('Orçamento zerado na nuvem!');
+                } catch (error) {
+                    console.error('Erro ao zerar orçamento:', error);
+                    showToast('Erro ao zerar gastos.');
+                } finally {
+                    confirmResetBtn.disabled = false;
+                    confirmResetBtn.textContent = 'Sim, zerar';
+                }
+            });
+
+            // Fecha o modal ao clicar fora dele
+            resetModal.addEventListener('click', (e) => {
+                if (e.target === resetModal) {
+                    resetModal.classList.add('hidden');
+                    resetModal.classList.remove('flex');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
